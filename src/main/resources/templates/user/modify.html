@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <title>회원정보 수정</title>
+  <link rel="stylesheet" th:href="@{/css/header.css}" />
+  <link rel="stylesheet" th:href="@{/css/footer.css}" />
+  <link rel="stylesheet" th:href="@{/css/mypage.css}" />
+  <style>
+      .form-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 14px;
+      }
+
+      .form-group select {
+          width: 100%;
+          border: 1px solid rgba(148, 163, 184, 0.92);
+          border-radius: 14px;
+          padding: 11px 14px;
+          background: rgba(255, 255, 255, 0.96);
+          color: #0f172a;
+          font: inherit;
+          font-size: 16px;
+          outline: none;
+          transition:
+                  border-color 0.2s,
+                  box-shadow 0.2s,
+                  background 0.2s;
+          appearance: none;
+          cursor: pointer;
+      }
+
+      .remove-img-btn {
+          position: absolute;
+          top: 5px;
+          right: 5px;
+          width: 28px;
+          height: 28px;
+          border: none;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.6);
+          color: #fff;
+          cursor: pointer;
+          margin: 0;
+      }
+  </style>
+</head>
+
+<body>
+<div th:replace="~{layout/header :: header}"></div>
+
+<main class="page-container">
+  <form
+      class="register-panel"
+      id="modifyForm"
+      th:action="@{/user/modify}"
+      method="post"
+      enctype="multipart/form-data"
+      novalidate
+  >
+    <section class="form-column">
+      <h2>회원정보 수정</h2>
+      <div class="profile-upload">
+        <label
+            for="profileFile"
+            class="profile-preview"
+            id="profilePreview"
+            th:classappend="${user.profileImg != null && user.profileImg != '/img/profile.png'} ? ' has-uploaded-image' : ''"
+            th:style="|position: relative; background-image: url('${user.profileImg != null && user.profileImg != '/img/profile.png' ? user.profileImg : ''}');|"
+        >
+          <img
+              id="defaultImg"
+              th:src="@{/img/profile.png}"
+              alt="프로필 이미지"
+              th:style="${user.profileImg != null && user.profileImg != '/img/profile.png'} ? 'display:none;' : ''"
+          />
+          <button
+              type="button"
+              class="remove-img-btn"
+              id="removeProfileBtn"
+              th:style="${user.profileImg != null && user.profileImg != '/img/profile.png'} ? '' : 'display:none;'"
+          >
+            ×
+          </button>
+        </label>
+
+        <label for="profileFile" class="file-trigger">
+          <svg viewBox="0 0 24 24">
+            <path d="M4 7h3l2-2h6l2 2h3v12H4z"></path>
+            <circle cx="12" cy="13" r="3.5"></circle>
+          </svg>
+        </label>
+
+        <input
+            type="file"
+            id="profileFile"
+            name="profileFile"
+            accept="image/*"
+        />
+
+        <p class="profile-guide">프로필 이미지를 클릭해서 변경</p>
+      </div>
+
+      <input type="hidden" name="uid" th:value="${user.uid}" />
+
+      <div class="form-group">
+        <label for="email">이메일</label>
+        <input
+            type="email"
+            id="email"
+            th:value="${user.email}"
+            readonly
+            class="readonly-input"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="name">이름 <span class="required">*</span></label>
+        <input
+            type="text"
+            id="name"
+            name="name"
+            th:value="${user.name}"
+            required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="password">새 비밀번호</label>
+        <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="변경할 때만 입력"
+            autocomplete="new-password"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="passwordConfirm">새 비밀번호 확인</label>
+        <input
+            type="password"
+            id="passwordConfirm"
+            placeholder="변경할 때만 입력"
+            autocomplete="new-password"
+        />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="location"
+          >거주 지역 <span class="required">*</span></label
+          >
+          <select id="location" name="location" required>
+            <option value="">지역 선택</option>
+            <option value="서울" th:selected="${user.location == '서울'}">
+              서울
+            </option>
+            <option value="부산" th:selected="${user.location == '부산'}">
+              부산
+            </option>
+            <option value="대구" th:selected="${user.location == '대구'}">
+              대구
+            </option>
+            <option value="인천" th:selected="${user.location == '인천'}">
+              인천
+            </option>
+            <option value="광주" th:selected="${user.location == '광주'}">
+              광주
+            </option>
+            <option value="대전" th:selected="${user.location == '대전'}">
+              대전
+            </option>
+            <option value="울산" th:selected="${user.location == '울산'}">
+              울산
+            </option>
+            <option value="세종" th:selected="${user.location == '세종'}">
+              세종
+            </option>
+            <option value="경기" th:selected="${user.location == '경기'}">
+              경기
+            </option>
+            <option value="강원" th:selected="${user.location == '강원'}">
+              강원
+            </option>
+            <option value="충북" th:selected="${user.location == '충북'}">
+              충북
+            </option>
+            <option value="충남" th:selected="${user.location == '충남'}">
+              충남
+            </option>
+            <option value="전북" th:selected="${user.location == '전북'}">
+              전북
+            </option>
+            <option value="전남" th:selected="${user.location == '전남'}">
+              전남
+            </option>
+            <option value="경북" th:selected="${user.location == '경북'}">
+              경북
+            </option>
+            <option value="경남" th:selected="${user.location == '경남'}">
+              경남
+            </option>
+            <option value="제주" th:selected="${user.location == '제주'}">
+              제주
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="category"
+          >선호 카테고리 <span class="required">*</span></label
+          >
+          <select id="category" name="category" required>
+            <option value="">카테고리 선택</option>
+            <option value="여행" th:selected="${user.category == '여행'}">
+              여행
+            </option>
+            <option
+                value="스터디"
+                th:selected="${user.category == '스터디'}"
+            >
+              스터디
+            </option>
+            <option value="취미" th:selected="${user.category == '취미'}">
+              취미
+            </option>
+            <option
+                value="운동/스포츠"
+                th:selected="${user.category == '운동/스포츠'}"
+            >
+              운동/스포츠
+            </option>
+            <option value="음식" th:selected="${user.category == '음식'}">
+              음식
+            </option>
+            <option value="카페" th:selected="${user.category == '카페'}">
+              카페
+            </option>
+            <option value="게임" th:selected="${user.category == '게임'}">
+              게임
+            </option>
+            <option
+                value="영화/드라마"
+                th:selected="${user.category == '영화/드라마'}"
+            >
+              영화/드라마
+            </option>
+            <option
+                value="공연/문화"
+                th:selected="${user.category == '공연/문화'}"
+            >
+              공연/문화
+            </option>
+            <option value="사진" th:selected="${user.category == '사진'}">
+              사진
+            </option>
+            <option
+                value="드라이브"
+                th:selected="${user.category == '드라이브'}"
+            >
+              드라이브
+            </option>
+            <option
+                value="반려동물"
+                th:selected="${user.category == '반려동물'}"
+            >
+              반려동물
+            </option>
+            <option
+                value="봉사활동"
+                th:selected="${user.category == '봉사활동'}"
+            >
+              봉사활동
+            </option>
+            <option
+                value="자기계발"
+                th:selected="${user.category == '자기계발'}"
+            >
+              자기계발
+            </option>
+            <option value="독서" th:selected="${user.category == '독서'}">
+              독서
+            </option>
+            <option value="음악" th:selected="${user.category == '음악'}">
+              음악
+            </option>
+            <option
+                value="전시회"
+                th:selected="${user.category == '전시회'}"
+            >
+              전시회
+            </option>
+            <option value="쇼핑" th:selected="${user.category == '쇼핑'}">
+              쇼핑
+            </option>
+            <option
+                value="맛집탐방"
+                th:selected="${user.category == '맛집탐방'}"
+            >
+              맛집탐방
+            </option>
+            <option value="기타" th:selected="${user.category == '기타'}">
+              기타
+            </option>
+          </select>
+        </div>
+      </div>
+      <input
+          type="hidden"
+          name="removeFile"
+          id="removeFile"
+          value="false"
+      />
+      <button type="submit" class="register-btn">수정하기</button>
+      <a th:href="@{/user/mypage}" class="secondary-link">마이페이지</a>
+    </section>
+  </form>
+</main>
+
+<script th:src="@{/js/header.js}"></script>
+<script th:inline="javascript">
+  const profileFile = document.getElementById("profileFile");
+  const preview = document.getElementById("profilePreview");
+  const removeBtn = document.getElementById("removeProfileBtn");
+  const defaultImg = document.getElementById("defaultImg");
+  const removeFile = document.getElementById("removeFile");
+  const modifyForm = document.getElementById("modifyForm");
+  const modifyError = /*[[${modifyError}]]*/ "modifyError";
+
+  window.addEventListener("load", () => {
+    if (modifyError) {
+      alert(modifyError);
+      return;
+    }
+  });
+
+  modifyForm.addEventListener("submit", function (e) {
+    const name = document.getElementById("name");
+    const password = document.getElementById("password").value;
+    const passwordConfirm =
+        document.getElementById("passwordConfirm").value;
+
+    if (!name.value.trim()) {
+      e.preventDefault();
+      alert("이름을 입력해주세요.");
+      name.focus();
+      return;
+    }
+
+    if (password.length > 255) {
+      alert("비밀번호는 255자 이하여야 합니다.");
+      return;
+    }
+
+    if (password || passwordConfirm) {
+      if (password !== passwordConfirm) {
+        e.preventDefault();
+        alert("비밀번호를 확인해주세요.");
+        document.getElementById("passwordConfirm").focus();
+      }
+    }
+
+    if (name.length < 3 || name.length > 30) {
+      alert("이름은 3자 이상 30자 이하여야 합니다.");
+      return;
+    }
+  });
+
+  profileFile.addEventListener("change", function () {
+    const file = this.files[0];
+    if (!file) return;
+
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      alert("이미지 용량이 너무 큽니다.");
+      this.value = "";
+      return;
+    }
+
+    removeFile.value = "false";
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      preview.style.backgroundImage = `url(${event.target.result})`;
+      preview.classList.add("has-uploaded-image");
+      defaultImg.style.display = "none";
+      removeBtn.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  });
+
+  removeBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    profileFile.value = "";
+    removeFile.value = "true";
+
+    preview.style.backgroundImage = "";
+    preview.classList.remove("has-uploaded-image");
+    defaultImg.style.display = "block";
+    removeBtn.style.display = "none";
+  });
+</script>
+<div th:replace="~{layout/footer}"></div>
+</body>
+</html>

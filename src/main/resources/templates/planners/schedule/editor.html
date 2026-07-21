@@ -1,0 +1,2331 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="_csrf" th:content="${_csrf.token}" />
+  <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+  <title th:text="${plannersDTO.name + ' :: 일정 편집'}">
+    플래너즈 :: 일정 작업 테이블
+  </title>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160/build/three.min.js"></script>
+  <link rel="stylesheet" th:href="@{/css/header.css}" />
+  <link rel="stylesheet" th:href="@{/css/plannersTap.css}" />
+  <link rel="stylesheet" th:href="@{/css/footer.css}" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"/>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <style>
+      .page {
+          display: flex;
+          gap: 16px;
+          min-height: 100vh;
+          padding: 16px;
+      }
+
+      .board-area,
+      .chat-area {
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+      }
+
+      .board-area {
+          flex: 7;
+          padding: 16px;
+          overflow: auto;
+          position: relative;
+      }
+
+      .chat-area {
+          flex: 3;
+          min-width: 320px;
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+      }
+
+      .section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 12px;
+      }
+
+      #srpv2-root .section-header:nth-of-type(n) {
+          display: grid;
+          grid-template-columns: 1fr 1fr auto auto;
+          /* 왼쪽 텍스트, 오른쪽 버튼 2개 */
+          align-items: center;
+          width: 100%;
+      }
+
+      #srpv2-root .section-header>[class^=title] {
+          justify-self: start;
+      }
+
+      #srpv2-root .section-header input.board-title {
+          outline: none;
+          border: none;
+          border-bottom: 2px dashed darkred;
+          padding: 0;
+      }
+
+      #srpv2-root .section-header .board-title:after {
+          content: "의 일정";
+      }
+
+      #srpv2-root .section-header .edit-title {
+          background: rgba(230, 230, 230);
+          width: fit-content;
+          border-radius: 50%;
+          padding: 5px;
+      }
+
+      #srpv2-root .section-header>[class$=btn] {
+          justify-self: end;
+      }
+
+      .board-title,
+      .chat-title {
+          margin: 0;
+          font-size: 20px;
+      }
+
+      .user-chip {
+          padding: 6px 10px;
+          border-radius: 999px;
+          background: #eef2ff;
+          color: #3730a3;
+          font-size: 13px;
+          font-weight: 700;
+          word-break: break-word;
+      }
+
+      .logout-button {
+          height: 32px;
+          padding: 0 10px;
+          border: 1px solid #d1d5db;
+          border-radius: 6px;
+          background: #fff;
+          color: #374151;
+          cursor: pointer;
+      }
+
+      .logout-button:hover {
+          background: #f3f4f6;
+      }
+
+      .board-columns {
+          display: flex;
+          gap: 16px;
+          min-height: calc(100vh - 88px);
+      }
+
+      .column {
+          flex: 1;
+          min-width: 180px;
+          min-height: 220px;
+          padding: 12px;
+          border-radius: 8px;
+          background: #f8f9fc;
+      }
+
+      .column h3 {
+          margin: 0 0 12px;
+          font-size: 16px;
+      }
+
+      .task {
+          margin-bottom: 10px;
+          padding: 12px;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          background: #fff;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+          cursor: grab;
+          user-select: none;
+      }
+
+      .task.dragging {
+          opacity: 0.5;
+      }
+
+      .task.in-slot {
+          margin-bottom: 0;
+      }
+
+      .task small {
+          display: block;
+          margin-top: 4px;
+          font-size: 12px;
+          color: #6b7280;
+      }
+
+      .time-slot-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+      }
+
+      .time-slot {
+          padding: 8px;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          background: #fff;
+          min-height: 64px;
+      }
+
+      .time-slot-label {
+          margin-bottom: 6px;
+          font-size: 13px;
+          font-weight: 700;
+          color: #374151;
+      }
+
+      .time-slot-body {
+          min-height: 36px;
+      }
+
+      .activity-block-list .task {
+          margin-top: 10px;
+          width: 90%;
+          justify-self: center;
+      }
+
+      .chat-messages {
+          flex: 1;
+          min-height: 240px;
+          margin-bottom: 12px;
+          padding: 12px;
+          overflow-y: auto;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          background: #fafafa;
+      }
+
+      .msg {
+          margin-bottom: 8px;
+          line-height: 1.45;
+          word-break: break-word;
+      }
+
+      .sender {
+          font-weight: 700;
+          color: #1f2937;
+      }
+
+      .chat-input {
+          display: flex;
+          gap: 8px;
+      }
+
+      .chat-input input {
+          flex: 1;
+          min-width: 0;
+          height: 42px;
+          padding: 0 12px;
+          border: 1px solid #d1d5db;
+          border-radius: 6px;
+          outline: none;
+      }
+
+      .chat-input input:focus {
+          border-color: #2563eb;
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+      }
+
+      .chat-input button {
+          width: 72px;
+          height: 42px;
+          border: none;
+          border-radius: 6px;
+          background: #2563eb;
+          color: #fff;
+          font-weight: 700;
+          cursor: pointer;
+      }
+
+      .chat-input button:hover {
+          background: #1d4ed8;
+      }
+
+      #cursorLayer,
+      #ghostLayer {
+          position: fixed;
+          inset: 0;
+          pointer-events: none;
+          z-index: 9999;
+      }
+
+      #cursorLayer {
+          z-index: 10001;
+      }
+
+      .remote-cursor {
+          position: fixed;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: #ef4444;
+          pointer-events: none;
+          z-index: 9999;
+          transform: translate(-50%, -50%);
+      }
+
+      .remote-cursor-label {
+          position: absolute;
+          top: -20px;
+          left: 10px;
+          white-space: nowrap;
+          font-size: 12px;
+          padding: 2px 6px;
+          border-radius: 6px;
+          background: rgba(0, 0, 0, 0.75);
+          color: #fff;
+      }
+
+      .drag-state {
+          position: fixed;
+          bottom: 16px;
+          left: 16px;
+          z-index: 10000;
+          display: none;
+          padding: 10px 14px;
+          border-radius: 8px;
+          background: rgba(17, 24, 39, 0.9);
+          color: #fff;
+          font-size: 13px;
+      }
+
+      @media (max-width: 840px) {
+          .page {
+              flex-direction: column;
+          }
+
+          .chat-area {
+              min-width: 0;
+          }
+
+          .board-columns {
+              min-height: 360px;
+              overflow-x: auto;
+          }
+      }
+
+      .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.4);
+          z-index: 20000;
+          display: none;
+          align-items: center;
+          justify-content: center;
+      }
+
+      .modal-content {
+          background: #fff;
+          padding: 24px;
+          border-radius: 8px;
+          width: 320px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .modal-content h3 {
+          margin-top: 0;
+      }
+
+      .form-group {
+          margin-bottom: 16px;
+      }
+
+      .form-group label {
+          display: block;
+          margin-bottom: 4px;
+          font-size: 14px;
+      }
+
+      .form-group input {
+          width: 100%;
+          padding: 8px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+      }
+
+      .modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+      }
+
+      .btn-cancel {
+          padding: 8px 16px;
+          background: #f3f4f6;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+      }
+
+      .btn-submit {
+          padding: 8px 16px;
+          background: #2563eb;
+          color: #fff;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+      }
+
+      .time-gutter {
+          width: 60px;
+          border-right: 1px solid #e5e7eb;
+          position: relative;
+          background: #f9fafb;
+      }
+
+      .time-slot-label {
+          position: absolute;
+          width: 100%;
+          text-align: right;
+          padding-right: 8px;
+          font-size: 12px;
+          color: #6b7280;
+          transform: translateY(-50%);
+      }
+
+      .time-board {
+          flex: 1;
+          position: relative;
+          background: repeating-linear-gradient(to bottom, transparent, transparent 59px, #e5e7eb 59px, #e5e7eb 60px);
+      }
+
+      .placed-block {
+          position: absolute;
+          left: 8px;
+          right: 8px;
+          border-radius: 6px;
+          padding: 6px 8px;
+          font-size: 13px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+          border-left: 4px solid rgba(0, 0, 0, 0.2);
+          display: flex;
+          flex-direction: column;
+          cursor: pointer;
+      }
+
+      .placed-block-title {
+          font-weight: 600;
+          margin-bottom: 2px;
+      }
+
+      .placed-block-time {
+          font-size: 11px;
+          opacity: 0.8;
+      }
+
+      .submit-btn {
+          background-color: #007bff;
+          /* 파란색 */
+          color: white;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+      }
+
+      .submit-btn:hover {
+          background-color: #0056b3;
+      }
+
+      #activity-list-header {
+          position: sticky;
+          top: 0;
+          z-index: 20;
+
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+
+          background: #f8f9fc;
+          border-bottom: 1px solid #e5e7eb;
+
+          margin: -12px -12px 12px;
+          padding: 12px;
+      }
+
+      #activity-list-header h3 {
+          margin: 0px 0px 0px 20px;
+          font-weight: bold;
+      }
+
+      #activity-list-header2 {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 200px;
+          width: 100%;
+      }
+
+      #activity-list-header p {
+          margin: 0;
+          text-align: center;
+      }
+
+      #blockPlusBtn {
+          border: none;
+          background-color: transparent;
+          cursor: pointer;
+          font-size: 28px;
+          color: #333;
+          transition: background-color 0.2s ease;
+          width: 32px;
+          justify-content: center;
+          border-radius: 20%;
+      }
+
+      #blockPlusBtn:hover {
+          background-color: #f0f0f0;
+          color: black;
+      }
+
+      #blockPlusBtn2 {
+          display: flex;
+          border: none;
+          background-color: transparent;
+          cursor: pointer;
+          font-size: 28px;
+          color: #333;
+          transition: background-color 0.2s ease;
+          width: 32px;
+          justify-content: center;
+          border-radius: 20%;
+          justify-self: end;
+      }
+
+      #blockPlusBtn2:hover {
+          background-color: #f0f0f0;
+          color: black;
+      }
+
+      .modal {
+          display: none;
+          position: fixed;
+          z-index: 1000;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.4);
+      }
+
+      .modal-content {
+          background-color: #fefefe;
+          margin: 15% auto;
+          padding: 20px;
+          border: 1px solid #888;
+          width: 300px;
+      }
+
+      .close {
+          float: right;
+          cursor: pointer;
+      }
+
+
+      #activityInput {
+          width: 70%;
+          padding: 10px;
+          border-radius: 8px;
+          border: 1px solid #ccc;
+      }
+
+      #submitBtn {
+          padding: 8px;
+          margin-top: 10px;
+          border-radius: 8px;
+          border: none;
+          background: #2563eb;
+          color: #fff;
+          cursor: pointer;
+      }
+
+      .activity-actions {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+      }
+
+      #activityTrashBtn {
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          font-size: 22px;
+          width: 32px;
+          height: 32px;
+          border-radius: 6px;
+      }
+
+      #activityTrashBtn.drag-over {
+          background: #fee2e2;
+          color: #dc2626;
+      }
+
+      .beFrozen,
+      .beMelt {
+          float: right;
+          padding-inline: 10px;
+          border-radius: 10px;
+          margin-bottom: 15px;
+      }
+
+      .beFrozen {
+          color: gainsboro;
+          background: royalblue;
+      }
+
+      .beFrozen:hover,
+      .beMelt:hover {
+          filter: contrast(1.5);
+      }
+
+      .beFrozen:before {
+          content: "❄️얼리기"
+      }
+
+      .beMelt {
+          background: orangered;
+      }
+
+      .beMelt:before {
+          content: "☀️풀기"
+      }
+
+      /*플래너 드롭다운*/
+      .invite-modal {
+          display: none;
+          /* 처음엔 숨김 */
+          position: fixed;
+          inset: 0;
+
+          background: rgba(0, 0, 0, .45);
+
+          justify-content: center;
+          align-items: center;
+
+          z-index: 9999;
+      }
+
+      .invite-modal.show {
+          display: flex;
+          /* show 클래스가 붙으면 보임 */
+      }
+
+      .invite-modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+
+          padding: 20px 24px;
+
+          border-bottom: 1px solid #eee;
+      }
+
+      .invite-modal-header h3 {
+          margin: 0;
+          font-size: 22px;
+          font-weight: 700;
+      }
+
+      .invite-modal-header button {
+          width: 34px;
+          height: 34px;
+
+          border: none;
+          border-radius: 50%;
+
+          background: #f3f4f6;
+
+          cursor: pointer;
+
+          font-size: 18px;
+      }
+
+      .invite-modal-header button:hover {
+          background: #e5e7eb;
+      }
+
+      .invite-modal-content {
+          width: 420px;
+          max-height: 600px;
+
+          background: #fff;
+          border-radius: 18px;
+
+          box-shadow: 0 15px 40px rgba(0, 0, 0, .18);
+
+          overflow: hidden;
+      }
+
+      .planner-list {
+
+          max-height: 420px;
+          overflow-y: auto;
+          padding: 12px 20px;
+      }
+
+      .planner-avatar {
+
+          width: 48px;
+          height: 48px;
+
+          border-radius: 50%;
+
+          object-fit: cover;
+      }
+
+      .planner-name {
+
+          flex: 1;
+          min-width: 0;
+          /* flex에서 말줄임 필수 */
+
+          font-size: 16px;
+          font-weight: 600;
+
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+      }
+
+      .invite-btn {
+
+          padding: 8px 18px;
+
+          border: none;
+          border-radius: 8px;
+
+          background: mediumseagreen;
+          color: white;
+
+          font-weight: 600;
+
+          cursor: pointer;
+
+          transition: .2s;
+      }
+
+      .invite-modal .invite-btn {
+          margin-left: auto;
+
+          flex-shrink: 0;
+
+          width: 68px;
+          height: 36px;
+
+          border: none;
+          border-radius: 8px;
+
+          background: #45b36b;
+          color: white;
+
+          font-weight: 600;
+          cursor: pointer;
+      }
+
+      .invite-btn:not([disabled]):hover {
+
+          background: seagreen;
+      }
+
+      .invite-btn[disabled] {
+          background: dimgray;
+      }
+
+      .invite-modal .invite-btn:not([disabled]):before {
+          content: "초대";
+      }
+
+      .invite-modal .invite-btn[disabled]:before {
+          content: "보냄";
+      }
+
+      .planner-item {
+          display: flex;
+          align-items: center;
+          /* 세로 가운데 */
+          gap: 14px;
+
+          padding: 10px 0;
+      }
+
+      .planner-info {
+          flex: 1;
+          min-width: 0;
+      }
+
+      .invite-modal h3 {
+          position: relative;
+      }
+
+      #inviteStandbyCount {
+          position: absolute;
+          top: 5px;
+          display: contents;
+      }
+
+      #inviteStandbyCount:after {
+          content: "명"
+      }
+  </style>
+  <div th:replace="~{layout/invite_css}"></div>
+  <link rel="stylesheet" th:href="@{/css/schedule_editor.css}" />
+</head>
+
+<body style="display: none">
+<div th:replace="~{layout/header}"></div>
+
+<main class="detail-main">
+  <div class="detail-shell">
+    <div th:replace="~{layout/plannersTap}"></div>
+    <article id="srpv2-root" class="detail-card schedule-editor-root">
+      <div id="cursorLayer"></div>
+      <div id="ghostLayer"></div>
+      <div id="dragState" class="drag-state"></div>
+
+      <div class="page">
+        <div class="board-area">
+          <div class="section-header">
+            <h2 class="board-title" th:title="${schedule.title}" th:text="|${schedule.title}|"></h2>
+            <input class="board-title" style="display:none" placeholder="변경할 일정 제목">
+            <div class="edit-title" th:if="${isCreator}" onclick="editTitle('try');">✏️</div>
+            <div class="edit-title" th:if="${isCreator}" style="display:none" onclick="editTitle('commit');">👌</div>
+            <button id="inviteBtn" class="invite-btn"><span class="material-symbols-outlined">
+                  groups
+                </span> 플래너 초대</button>
+
+            <div id="inviteModal" class="invite-modal">
+              <div class="invite-modal-content">
+
+                <div class="invite-modal-header">
+                  <h3>현재 접속 중 <sub id="inviteStandbyCount">0</sub></h3>
+                  <button id="closeInviteModal">&times;</button>
+                </div>
+
+                <div id="plannerList" class="planner-list"></div>
+
+              </div>
+            </div>
+            <script>
+              const plannerList = document.getElementById("plannerList");
+              const inviteBtn = document.getElementById("inviteBtn");
+              const inviteModal = document.getElementById("inviteModal");
+              const closeInviteModal = document.getElementById("closeInviteModal");
+
+              inviteBtn.addEventListener("click", () => {
+                inviteModal.classList.add("show");
+              });
+
+
+              inviteBtn.addEventListener("click", () => {
+                inviteModal.classList.add("show");
+              });
+
+              closeInviteModal.addEventListener("click", () => {
+                inviteModal.classList.remove("show");
+              });
+
+              inviteModal.addEventListener("click", (e) => {
+                if (e.target === inviteModal) {
+                  inviteModal.classList.remove("show");
+                }
+              });
+
+              function sendInvitation(plannerwho) {
+                let tg_invitee = plannerwho.parentElement.title;
+                contentInput.value = "/초대 " + tg_invitee + " " + location.href.replace(location.origin, '');
+                sendMessage();
+                plannerwho.disabled = true;
+              }
+            </script>
+            <button class="submit-btn" th:if="${currentUserUid == schedule.creatorUid}" onclick="submitSchedule()">일정
+              등록</button>
+          </div>
+
+          <div class="board-columns">
+            <div class="left-container" style="flex: 1; display: flex; flex-direction: column; gap: 16px;">
+              <div class="activity-block-list" data-zone="activity"
+                   style="flex: 2; overflow-y: auto; overflow-x: hidden; min-height: 0; margin-bottom: 0; background-color: #f8f9fc;">
+              </div>
+
+
+              <div class="chat-area" style="flex: 3.5; overflow-y: hidden; min-height: 0;">
+                <h3 style="margin: 0 0 12px; font-size: 16px;"><span>채팅</span><span id="frozenBtn"
+                                                                                    th:if="${isCreator}" class="beFrozen"
+                                                                                    onclick="this.classList.contains('beFrozen')? this.classList='beMelt':this.classList='beFrozen';sendOnly(this.classList[0])"></span>
+                </h3>
+                <div class="chat-messages" id="chatMessages" style="flex: 1; overflow-y: auto;"></div>
+                <div class="chat-input">
+                  <input type="text" id="content" placeholder="메시지 입력..."
+                         onkeypress="if(event.key === 'Enter') sendMessage()">
+                  <button onclick="sendMessage()">전송</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="column time-table" data-zone="schedule" style="flex: 2.5; overflow-y: auto;">
+              <div
+                  style="display: flex; justify-content: space-between; align-items: center; background: #fff; position: sticky; top: 0; z-index: 10; padding: 4px 0;">
+                <h3 style="margin: 0;">시간표</h3>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button id="prevDateBtn" onclick="changeDate(-1)"
+                          style="border:none; background:none; cursor:pointer; font-size:16px;">◀</button>
+                  <span id="currentDateDisplay"
+                        style="font-weight:bold; font-size: 14px; min-width: 90px; text-align: center;"></span>
+                  <button id="nextDateBtn" onclick="changeDate(1)"
+                          style="border:none; background:none; cursor:pointer; font-size:16px;">▶</button>
+                </div>
+              </div>
+              <div class="time-container" style="display: flex; margin-top: 12px; position: relative;">
+                <div class="time-gutter" id="timeGutter"></div>
+                <div class="time-board" id="timeBoard"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="timeModal" class="modal-overlay">
+        <div class="modal-content">
+          <h3 id="modalTaskName">시간 설정</h3>
+          <div class="form-group">
+            <label>시작 시간 (10분 단위)</label>
+            <div style="display: flex; gap: 4px;">
+              <select id="startAmPm"
+                      style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; outline: none; cursor: pointer;">
+                <option value="AM">오전</option>
+                <option value="PM">오후</option>
+              </select>
+              <select id="startHour"
+                      style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; outline: none; cursor: pointer;">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+              </select>
+              <span style="align-self: center; font-weight: bold;">:</span>
+              <select id="startMinute"
+                      style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; outline: none; cursor: pointer;">
+                <option value="00">00</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+                <option value="40">40</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>종료 시간 (10분 단위)</label>
+            <div style="display: flex; gap: 4px;">
+              <select id="endAmPm"
+                      style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; outline: none; cursor: pointer;">
+                <option value="AM">오전</option>
+                <option value="PM">오후</option>
+              </select>
+              <select id="endHour"
+                      style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; outline: none; cursor: pointer;">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+              </select>
+              <span style="align-self: center; font-weight: bold;">:</span>
+              <select id="endMinute"
+                      style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; outline: none; cursor: pointer;">
+                <option value="00">00</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+                <option value="40">40</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+          <div id="timeErrorMsg"
+               style="color: #ef4444; font-size: 13px; margin-bottom: 12px; display: none; text-align: right;"></div>
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" onclick="closeTimeModal()">취소</button>
+            <button type="button" class="btn-submit" onclick="submitTimeModal()">확인</button>
+          </div>
+        </div>
+      </div>
+  </div>
+  </div>
+  </div>
+  </article>
+  </div>
+</main>
+
+<div id="activityModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h3>활동 블럭 추가</h3>
+    <input type="text" id="activityInput" placeholder="활동 내용을 입력하세요">
+    <button id="submitBtn">등록</button>
+  </div>
+</div>
+
+<script th:inline="javascript">
+  const contentInput = document.getElementById("content");
+
+  let pendingTask = null;
+  let timelineStartHour = 9;
+  let dateList = [];
+  let currentDateIndex = 0;
+
+  const blockColors = [
+    '#fecaca', '#fde68a', '#d9f99d', '#bbf7d0', '#a7f3d0',
+    '#99f6e4', '#bae6fd', '#bfdbfe', '#c7d2fe', '#ddd6fe',
+    '#fbcfe8', '#fecdd3'
+  ];
+
+  const isMember = /*[[${isMember}]]*/'isMember';
+  const sid = /*[[${sid}]]*/ 'sid';
+  const tid = /*[[${tid}]]*/'tid';
+
+  const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+  const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+  window.addEventListener("load", () => {
+    if (isMember === false) {
+      alert("잘못된 접근입니다.");
+      window.history.back();
+      return;
+    }
+    document.body.style.display = "block";
+    initPage();
+    initDates();
+    initTimeTable();
+    initActivityDropZone();
+    loadActivityList();
+    connect();
+  });
+
+  function getColorForTask(taskId) {
+    if (!taskId) return blockColors[0];
+    let hash = 0;
+    const str = String(taskId);
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return blockColors[Math.abs(hash) % blockColors.length];
+  }
+
+
+  const MY_USER_ID = Number(
+      /*[[${#authentication.principal == 'anonymousUser'
+      ? 0
+      : #authentication.principal.uid}]]*/ 0,
+  );
+
+  const MY_NAME =
+      /*[[${#authentication.principal == 'anonymousUser'
+      ? 'guest'
+      : #authentication.principal.name}]]*/ "guest";
+
+  let stompClient = null;
+  let connected = false;
+  let draggedTask = null;
+
+  const remoteCursors = new Map();
+  const remoteDragState = new Map();
+
+  let cursorQueue = [];
+  let cursorBatchTimer = null;
+
+  const enemies = {};
+
+  function createInstanceId() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return `inst-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function findTaskElement(data) {
+    if (data.instanceId) {
+      const byInstance = document.querySelector(
+          `.task[data-instance-id='${data.instanceId}']`,
+      );
+      if (byInstance) return byInstance;
+    }
+
+    return document.querySelector(`.task[data-id='${data.taskId}']`);
+  }
+
+  function handleTaskMoveEvent(data) {
+    if (data.action === "ACTIVITY_REFRESH") {
+      loadActivityList();
+      return;
+    }
+
+    if (data.action === "ACTIVITY_REMOVE") {
+      loadActivityList();
+
+      document
+          .querySelectorAll(`.placed-block[data-task-id="${data.taskId}"]`)
+          .forEach((block) => block.remove());
+
+      return;
+    }
+
+    if (data.action === "REMOVE") {
+      if (!data.instanceId) return;
+      const target = document.getElementById("block-" + data.instanceId);
+      if (target) target.remove();
+      return;
+    }
+
+    if (data.mode === "COPY" || data.mode === "MOVE_SCHEDULED") {
+      renderPlacedBlock(data);
+      return;
+    }
+  }
+
+  function initDates() {
+    const startDateStr = /*[[${schedule != null && schedule.startDate != null ? schedule.startDate.toString() : ''}]]*/ "2026-06-17T09:00:00";
+    const endDateStr = /*[[${schedule != null && schedule.endDate != null ? schedule.endDate.toString() : ''}]]*/ "2026-06-18T18:00:00";
+
+    let start = new Date(startDateStr);
+    let end = new Date(endDateStr);
+
+    if (isNaN(start.getTime())) start = new Date();
+    if (isNaN(end.getTime())) end = new Date();
+    if (end < start) end = start;
+
+    timelineStartHour = 0;
+
+    let current = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+    while (current <= last) {
+      const y = current.getFullYear();
+      const m = String(current.getMonth() + 1).padStart(2, '0');
+      const d = String(current.getDate()).padStart(2, '0');
+      dateList.push(`${y}-${m}-${d}`);
+      current.setDate(current.getDate() + 1);
+    }
+
+    if (dateList.length === 0) {
+      const today = new Date();
+      dateList.push(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`);
+    }
+
+    updateDateUI();
+  }
+
+  function updateDateUI() {
+    document.getElementById("currentDateDisplay").textContent = dateList[currentDateIndex];
+    document.getElementById("prevDateBtn").style.visibility = currentDateIndex > 0 ? "visible" : "hidden";
+    document.getElementById("nextDateBtn").style.visibility = currentDateIndex < dateList.length - 1 ? "visible" : "hidden";
+  }
+
+  function changeDate(delta) {
+    const newIndex = currentDateIndex + delta;
+    if (newIndex >= 0 && newIndex < dateList.length) {
+      currentDateIndex = newIndex;
+      updateDateUI();
+      refreshBlocksVisibility();
+    }
+  }
+
+  function refreshBlocksVisibility() {
+    const currentDate = dateList[currentDateIndex];
+    const previousDate = currentDateIndex > 0 ? dateList[currentDateIndex - 1] : null;
+
+    document.querySelectorAll(".placed-block").forEach(block => {
+      const startStr = block.dataset.start;
+      const endStr = block.dataset.end;
+
+      if (block.dataset.scheduleDate === currentDate) {
+        const startPx = timeToPixels(startStr);
+        const endPx = timeToPixels(endStr);
+        const isNextDaySpan = endPx <= startPx;
+
+        const topPx = startPx;
+        const heightPx = isNextDaySpan ? (24 * 60 - startPx) : (endPx - startPx);
+
+        block.style.top = topPx + "px";
+        block.style.height = heightPx + "px";
+        block.style.display = "flex";
+        block.querySelector(".placed-block-time").textContent = `${startStr} ~ ${endStr}`;
+
+      } else if (previousDate && block.dataset.scheduleDate === previousDate) {
+        const startPx = timeToPixels(startStr);
+        const endPx = timeToPixels(endStr);
+        if (endPx <= startPx) {
+          const topPx = 0;
+          const heightPx = endPx;
+
+          block.style.top = topPx + "px";
+          block.style.height = heightPx + "px";
+          block.style.display = "flex";
+          block.querySelector(".placed-block-time").textContent = `${startStr} ~ ${endStr} (전일)`;
+        } else {
+          block.style.display = "none";
+        }
+      } else {
+        block.style.display = "none";
+      }
+    });
+  }
+
+  function initTimeTable() {
+    const gutter = document.getElementById("timeGutter");
+    if (!gutter) return;
+
+    let str = "";
+    for (let i = 0; i <= 24; i++) {
+      let displayHour = i >= 24 ? 0 : i;
+      let suffix = i >= 24 ? " (익일)" : "";
+      str += `<div class="time-slot-label" style="top: ${i * 60}px">${String(displayHour).padStart(2, '0')}:00${suffix}</div>`;
+    }
+    gutter.innerHTML = str;
+    gutter.style.height = (24 * 60) + "px";
+
+    const board = document.getElementById("timeBoard");
+    board.style.height = (24 * 60) + "px";
+
+    refreshBlocksVisibility();
+
+    const timeTableCol = document.querySelector(".time-table");
+    timeTableCol.addEventListener("dragover", (e) => {
+      e.preventDefault();
+    });
+
+    timeTableCol.addEventListener("drop", (e) => {
+      e.preventDefault();
+      if (!draggedTask) return;
+
+      const droppedStartTime = getDroppedStartTime(e);
+
+      openTimeModal(
+          draggedTask.textContent.trim(),
+          draggedTask.dataset.id,
+          droppedStartTime
+      );
+    });
+  }
+
+  function timeToPixels(timeStr) {
+    if (!timeStr) return 0;
+    const parts = timeStr.split(":");
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    return (h * 60) + m;
+  }
+
+  // 픽셀단위를 시간으로 변환
+  function pixelsToTime(px) {
+    let minutes = Math.round(px / 60) * 60;
+
+    minutes = Math.max(0, Math.min(minutes, 23 * 60 + 50));
+
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+
+    return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+  }
+
+  // 드롭 위치를 시간으로 변환
+  function getDroppedStartTime(e) {
+    const board = document.getElementById("timeBoard");
+    if (!board) return null;
+
+    const rect = board.getBoundingClientRect();
+    const y = e.clientY - rect.top - 30; // e.offsetY 보다 이게 안전
+    if (y < 0 || y > board.offsetHeight) {
+      return pixelsToTime(10);
+    }
+
+    return pixelsToTime(y);
+  }
+
+  // 1시간 뒤 종료시간을 만드는 함수
+  function addMinutesToTime(timeStr, minutesToAdd) {
+    let totalMinutes = timeToPixels(timeStr) + minutesToAdd;
+
+    totalMinutes = totalMinutes % (24 * 60);
+
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+
+    return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+  }
+
+  function get24HourFromSelects(amPmId, hourId, minId) {
+    let ampm = document.getElementById(amPmId).value;
+    let h = parseInt(document.getElementById(hourId).value, 10);
+    let m = document.getElementById(minId).value;
+
+    if (ampm === "AM" && h === 12) h = 0;
+    else if (ampm === "PM" && h !== 12) h += 12;
+
+    return String(h).padStart(2, '0') + ":" + m;
+  }
+
+  function setSelectsFrom24Hour(timeStr, amPmId, hourId, minId) {
+    let parts = timeStr.split(":");
+    let h = parseInt(parts[0], 10);
+    let m = parts[1];
+
+    let ampm = h >= 12 ? "PM" : "AM";
+    if (h === 0) h = 12;
+    else if (h > 12) h -= 12;
+
+    document.getElementById(amPmId).value = ampm;
+    document.getElementById(hourId).value = String(h);
+    document.getElementById(minId).value = m;
+  }
+
+  function openTimeModal(taskName, taskId, droppedStartTime = null) {
+    pendingTask = { name: taskName, id: taskId };
+    document.getElementById("modalTaskName").textContent = taskName + " 시간 설정";
+    document.getElementById("timeErrorMsg").style.display = "none";
+
+    if (droppedStartTime) {
+      const droppedEndTime = addMinutesToTime(droppedStartTime, 60);
+
+      setSelectsFrom24Hour(droppedStartTime, "startAmPm", "startHour", "startMinute");
+      setSelectsFrom24Hour(droppedEndTime, "endAmPm", "endHour", "endMinute");
+
+      document.getElementById("timeModal").style.display = "flex";
+      return;
+    }
+
+    let latestEnd = "00:00";
+    const currentDate = dateList[currentDateIndex];
+    document.querySelectorAll(".placed-block").forEach(block => {
+      if (block.dataset.scheduleDate === currentDate) {
+        let existingEndPx = timeToPixels(block.dataset.end);
+        let existingStartPx = timeToPixels(block.dataset.start);
+        if (existingEndPx <= existingStartPx) existingEndPx += 24 * 60;
+
+        let latestPx = timeToPixels(latestEnd);
+        if (existingEndPx > latestPx && existingEndPx <= 24 * 60) {
+          latestEnd = block.dataset.end;
+        }
+      }
+    });
+
+    if (latestEnd === "00:00") {
+      setSelectsFrom24Hour("09:00", "startAmPm", "startHour", "startMinute");
+      setSelectsFrom24Hour("10:00", "endAmPm", "endHour", "endMinute");
+    } else {
+      setSelectsFrom24Hour(latestEnd, "startAmPm", "startHour", "startMinute");
+      let endPx = timeToPixels(latestEnd) + 60;
+      if (endPx >= 24 * 60) endPx = endPx - (24 * 60);
+      let endH = Math.floor(endPx / 60);
+      let endM = String(endPx % 60).padStart(2, '0');
+      let nextTimeStr = String(endH).padStart(2, '0') + ":" + endM;
+      setSelectsFrom24Hour(nextTimeStr, "endAmPm", "endHour", "endMinute");
+    }
+
+    document.getElementById("timeModal").style.display = "flex";
+  }
+
+  function closeTimeModal() {
+    document.getElementById("timeModal").style.display = "none";
+    pendingTask = null;
+  }
+
+  function submitTimeModal() {
+    const startTime = get24HourFromSelects("startAmPm", "startHour", "startMinute");
+    const endTime = get24HourFromSelects("endAmPm", "endHour", "endMinute");
+    const errorMsg = document.getElementById("timeErrorMsg");
+
+    if (!startTime || !endTime) {
+      errorMsg.textContent = "시간을 입력해주세요.";
+      errorMsg.style.display = "block";
+      return;
+    }
+
+    const newStartPx = timeToPixels(startTime);
+    let newEndPx = timeToPixels(endTime);
+    if (newEndPx <= newStartPx) newEndPx += 24 * 60;
+
+    let isOverlapping = false;
+    const currentDate = dateList[currentDateIndex];
+    const previousDate = currentDateIndex > 0 ? dateList[currentDateIndex - 1] : null;
+
+    document.querySelectorAll(".placed-block").forEach(block => {
+      if (block.dataset.scheduleDate === currentDate) {
+        const existingStartPx = timeToPixels(block.dataset.start);
+        let existingEndPx = timeToPixels(block.dataset.end);
+        if (existingEndPx <= existingStartPx) existingEndPx += 24 * 60;
+
+        if (newStartPx < existingEndPx && newEndPx > existingStartPx) {
+          isOverlapping = true;
+        }
+      } else if (previousDate && block.dataset.scheduleDate === previousDate) {
+        const existingStartPx = timeToPixels(block.dataset.start);
+        const existingEndPx = timeToPixels(block.dataset.end);
+        if (existingEndPx <= existingStartPx) {
+          if (newStartPx < existingEndPx) {
+            isOverlapping = true;
+          }
+        }
+      }
+    });
+
+    if (isOverlapping) {
+      errorMsg.textContent = "이미 할당된 시간입니다.";
+      errorMsg.style.display = "block";
+      return;
+    }
+
+    const instanceId = createInstanceId();
+
+    const data = {
+      sid: sid,
+      userId: MY_USER_ID,
+      username: MY_NAME,
+      taskId: pendingTask.id,
+      content: pendingTask.name,
+      mode: "MOVE_SCHEDULED",
+      action: "ADD",
+      instanceId: instanceId,
+      startTime: startTime,
+      endTime: endTime,
+      scheduleDate: currentDate
+    };
+
+    stompClient.send("/app/task.move", {}, JSON.stringify(data));
+    renderPlacedBlock(data);
+    closeTimeModal();
+  }
+
+  function renderPlacedBlock(data) {
+    const board = document.getElementById("timeBoard");
+    if (!board) return;
+    let block = document.getElementById("block-" + data.instanceId);
+    if (!block) {
+      block = document.createElement("div");
+      block.id = "block-" + data.instanceId;
+      block.className = "placed-block";
+      block.dataset.instanceId = data.instanceId;
+      block.dataset.taskId = data.taskId;
+      block.style.backgroundColor = getColorForTask(data.taskId);
+
+      const title = document.createElement("div");
+      title.className = "placed-block-title";
+
+      const timeInfo = document.createElement("div");
+      timeInfo.className = "placed-block-time";
+
+      block.appendChild(title);
+      block.appendChild(timeInfo);
+      board.appendChild(block);
+    }
+
+    block.dataset.start = data.startTime;
+    block.dataset.end = data.endTime;
+    block.dataset.scheduleDate = data.scheduleDate;
+    block.querySelector(".placed-block-title").textContent = data.content || "이름없음";
+
+    refreshBlocksVisibility();
+  }
+
+  function logout() {
+    return /*[[${isCreator}]]*/ false;
+  }
+
+  function connect() {
+    const socket = new SockJS(`/ws?sid=${sid}`);
+    stompClient = Stomp.over(socket);
+    stompClient.debug = null;
+
+    stompClient.connect({}, function () {
+      connected = true;
+
+      sendOnly("하잇~! 등장이요");
+      const msgattendbody = {
+        uid: MY_USER_ID, // 예시
+        url: location.pathname + location.search
+      };
+      stompClient.send("/app/chat.attend", {}, JSON.stringify(msgattendbody));
+
+      stompClient.subscribe("/topic/chatlive." + sid, function (message) {
+        const data = JSON.parse(message.body);
+        if (data.reqCode === false || data.reqCode === "false") {
+          alert('리더가 일정 편집을 종료했습니다.');
+          location.href = location.origin + '/planners/schedule?tid=' + tid;
+        }//
+      });
+
+      stompClient.subscribe("/topic/editorroom." + sid, function (message) {
+        const msgbody = JSON.parse(message.body);
+        if (msgbody.content === 'dkfjalkjfjlkjlkejlwjlkfjdfldjfl') {
+          if (confirm('방장이 일정 편집을 종료했습니다.\n일정 상세보기 페이지로 이동하시겠습니까?')) location.href = location.href.replace('editor', 'detail');
+          else location.href = location.href.replace('/editor', '').split('&sid=')[0];
+          return;
+        } else if (msgbody.content == 'beFrozen') {
+          if (document.querySelector('#frozenBtn') == null) {
+            contentInput.disabled = false;
+            contentInput.value = ''; contentInput.focus();
+          } else {
+            document.querySelector('#frozenBtn').classList = 'beFrozen';
+            contentInput.placeholder = '';
+          }
+          return;
+        } else if (msgbody.content == 'beMelt') {
+          if (document.querySelector('#frozenBtn') == null) {
+            contentInput.disabled = true;
+            contentInput.value = '방장이 채팅을 얼렸습니다';
+          } else {
+            document.querySelector('#frozenBtn').classList = 'beMelt';
+            contentInput.placeholder = '채팅방을 얼렸습니다';
+          }
+          return;
+        } else if (msgbody.content == '하잇~! 등장이요') {
+
+          const msgattend = {
+            uid: msgbody.senderId, // 예시
+            url: location.pathname + location.search
+          };
+          stompClient.send("/app/chat.attend", {}, JSON.stringify(msgattend));
+
+          if (logout())
+            sendOnly(frozenBtn.classList[0]);
+          return;
+        }else if(msgbody.content.startsWith('/title')&&msgbody.content.substring(msgbody.content.indexOf(' ')).trim().length>0){
+          document.querySelector('#srpv2-root .board-title').innerText = msgbody.content.substring(msgbody.content.indexOf(' ')).trim();
+          return;
+        }
+        showMessage(msgbody);
+      });
+
+      stompClient.subscribe("/topic/task." + sid, function (message) {
+        const data = JSON.parse(message.body);
+        handleTaskMoveEvent(data);
+      });
+
+      stompClient.subscribe("/topic/task.state." + sid, function (message) {
+        const dataList = JSON.parse(message.body);
+        if (Array.isArray(dataList)) {
+          dataList.forEach(handleTaskMoveEvent);
+        }
+      });
+
+      stompClient.subscribe("/topic/cursor.batch." + sid, function (message) {
+        const payload = JSON.parse(message.body);
+
+        const cursors = payload.cursors || [];
+        cursors.forEach(renderRemoteCursor);
+      });
+
+      stompClient.subscribe("/topic/task.drag." + sid, function (message) {
+        renderRemoteDragState(JSON.parse(message.body));
+      });
+
+      stompClient.subscribe("/topic/task.drag.move." + sid, function (message) {
+        const data = JSON.parse(message.body);
+        renderRemoteCursor(data);
+        renderRemoteDraggingTask(data);
+      });
+
+
+      //초대 등록
+      stompClient.subscribe("/topic/planners." + tid, function (attended) {//
+        const a_planner = JSON.parse(attended.body); // 서버에서 보낸 ResponseUserDTO 복원
+        if (a_planner.url == location.pathname + location.search) {
+          //만약 유저의 위치와 지금 위치가 같다면 삭제 : 같은 경우 == 나 자신인 경우, 방 안의 유저인 경우
+          if (plannerList.querySelector(`[title="${a_planner.user.name}"]`) != null) plannerList.querySelector(`[title="${a_planner.user.name}"]`).remove();
+        } else {
+          //유저 위치가 다르면 추가
+          if (plannerList.querySelector(`[title="${a_planner.user.name}"]`) == null)
+            plannerList.innerHTML += `
+            <div class="planner-item" title="${a_planner.user.name}">
+    <img class="planner-avatar" src="${a_planner.user.profileImg}">
+
+    <div class="planner-info">
+        <span class="planner-name">${a_planner.user.name}</span>
+    </div>
+
+    <button class="invite-btn" onclick="sendInvitation(this)"></button>
+</div>
+        `;
+        }
+        inviteStandbyCount.textContent = plannerList.childElementCount;
+      });
+
+      //           // console.log("UID:", a_planner.uid);
+
+      //
+      stompClient.subscribe("/topic/game." + sid, (msg) => {
+        const data = JSON.parse(msg.body);
+
+        if (data.uid === MY_USER_ID) return;
+
+        if (!enemies[data.uid]) {
+          enemies[data.uid] = createEnemy(data);
+
+          enemies[data.uid].state = {
+            posBuffer: [],
+            lastUpdate: Date.now()
+          };
+        }
+
+        if (data.type === "hit" && String(data.targetUid) === String(MY_USER_ID)) {
+          window.takeDamage?.(Number(data.damage) || 10);
+        }
+
+        const e = enemies[data.uid];
+
+        // ⭐ 핵심: 위치 버퍼 저장
+        e.state.posBuffer.push({
+          pos: new THREE.Vector3(data.x, data.y, data.z),
+          yaw: data.yaw,
+          time: Date.now()
+        });
+
+        // 최대 10개만 유지 (lag buffer)
+        if (e.state.posBuffer.length > 10) {
+          e.state.posBuffer.shift();
+        }
+      });
+
+
+      startCursorBatchSender();
+
+      stompClient.send(
+          "/app/task.state.request",
+          {},
+          JSON.stringify({
+            sid: sid,
+            userId: MY_USER_ID,
+            username: MY_NAME,
+          }),
+      );
+    });
+  }
+
+  function initActivityDropZone() {
+    const activityList = document.querySelector(".activity-block-list");
+
+    activityList.addEventListener("dragover", (e) => {
+      e.preventDefault();
+    });
+
+    activityList.addEventListener("drop", (e) => {
+      e.preventDefault();
+      if (!draggedTask) return;
+
+      if (draggedTask.dataset.zone === "schedule") {
+        if (!draggedTask.dataset.instanceId) {
+          draggedTask.dataset.instanceId = createInstanceId();
+        }
+
+        const instanceId = draggedTask.dataset.instanceId;
+        const taskId = draggedTask.dataset.id || draggedTask.dataset.taskId;
+
+        draggedTask.remove();
+
+        if (stompClient && connected) {
+          stompClient.send(
+              "/app/task.remove",
+              {},
+              JSON.stringify({
+                sid: sid,
+                instanceId: instanceId,
+                userId: MY_USER_ID,
+                username: MY_NAME,
+                taskId: taskId,
+                action: "REMOVE",
+                mode: "REMOVE"
+              }),
+          );
+        }
+      }
+    });
+  }
+
+  function attachTaskListeners(task) {
+    task.setAttribute("draggable", "true");
+
+    task.addEventListener("dragstart", () => {
+      draggedTask = task;
+      task.classList.add("dragging");
+
+      if (task.dataset.zone === "schedule" && !task.dataset.instanceId) {
+        task.dataset.instanceId = createInstanceId();
+      }
+
+      if (stompClient && connected) {
+        stompClient.send(
+            "/app/task.drag.start",
+            {},
+            JSON.stringify({
+              sid: sid,
+              userId: MY_USER_ID,
+              username: MY_NAME,
+              taskId: task.dataset.id,
+              instanceId: task.dataset.instanceId || "",
+            }),
+        );
+      }
+    });
+
+    task.addEventListener("dragend", () => {
+      task.classList.remove("dragging");
+
+      if (stompClient && connected) {
+        stompClient.send(
+            "/app/task.drag.end",
+            {},
+            JSON.stringify({
+              sid: sid,
+              userId: MY_USER_ID,
+              username: MY_NAME,
+              taskId: task.dataset.id,
+              instanceId: task.dataset.instanceId || "",
+            }),
+        );
+      }
+
+      draggedTask = null;
+    });
+
+    task.addEventListener("contextmenu", (e) => {
+      if (task.dataset.zone !== "schedule") return;
+
+      e.preventDefault();
+
+      if (!task.dataset.instanceId) {
+        task.dataset.instanceId = createInstanceId();
+      }
+
+      const instanceId = task.dataset.instanceId;
+      const taskId = task.dataset.id;
+
+      task.remove();
+
+      if (stompClient && connected) {
+        stompClient.send(
+            "/app/task.remove",
+            {},
+            JSON.stringify({
+              sid: sid,
+              instanceId: instanceId,
+              userId: MY_USER_ID,
+              username: MY_NAME,
+              taskId: taskId,
+            }),
+        );
+      }
+    });
+  }
+
+  function loadActivityList() {
+    const tid = /*[[${plannersDTO.tid}]]*/ "tid";
+    const url = "/planners/activity?tid=";
+
+    fetch(url + tid, { method: "GET" })
+        .then((res) => res.json())
+        .then((data) => {
+          const activityList = document.querySelector(".activity-block-list");
+          let str = `
+          <div id="activity-list-header">
+            <h3>활동 블럭 목록</h3>
+            <div class="activity-actions">
+              <button id="blockPlusBtn" onclick="openModal()">+</button>
+              <button id="activityTrashBtn" type="button" title="삭제">🗑</button>
+            </div>
+          </div>`;
+
+          if (data.length === 0) {
+            str =
+                '<button id="blockPlusBtn2" onclick="openModal()">+</button><div id="activity-list-header2"><p>생성된 일정 블럭이 없습니다.</p></div>';
+          } else {
+            for (const activity of data) {
+              str += `<div
+                    class="task"
+                    draggable="true"
+                    data-id="${activity.bid}"
+                    data-zone="activity"
+                  >
+                    ${activity.name}
+                  </div>`;
+            }
+          }
+
+          activityList.innerHTML = str;
+          initActivityTrashDropZone();
+          document.querySelectorAll(".task").forEach(attachTaskListeners);
+        });
+  }
+
+
+  // 일정 블록 추가하는 함수
+  document.addEventListener("DOMContentLoaded", () => {
+    const modal = document.getElementById("activityModal");
+    const activityInput = document.getElementById("activityInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const closeBtn = document.querySelector(".close");
+
+    window.openModal = function () {
+      modal.style.display = "block";
+      activityInput.focus();
+    };
+
+    function closeModal() {
+      modal.style.display = "none";
+      activityInput.value = '';
+    }
+
+    if (closeBtn) closeBtn.onclick = closeModal;
+    window.onclick = (event) => { if (event.target == modal) closeModal(); };
+
+    function submitActivity() {
+      const activity = activityInput.value.trim();
+      const tid = /*[[${plannersDTO.tid}]]*/ "tid";
+
+      if (!activity) {
+        alert("활동 내용을 입력해주세요.");
+        return;
+      }
+
+      fetch(`/planners/activity?tid=${tid}&name=${encodeURIComponent(activity)}`, { method: "POST", headers: { [csrfHeader]: csrfToken } })
+          .then(res => {
+            if (res.status === 200) {
+              alert('일정 블럭이 추가되었습니다.');
+              closeModal();
+              loadActivityList();
+              notifyActivityListChanged("ACTIVITY_REFRESH")
+            } else {
+              alert("활동 이름이 너무 깁니다.");
+            }
+          });
+
+    };
+
+    submitBtn.onclick = submitActivity;
+
+    activityInput.addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        submitActivity();
+      }
+    })
+
+
+
+
+  });
+
+  // 일정블록을 휴지통으로 옮길시 삭제 함수 호출하는 함수
+  function initActivityTrashDropZone() {
+    const trash = document.getElementById("activityTrashBtn");
+    if (!trash) return;
+
+    trash.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      trash.classList.add("drag-over");
+    });
+
+    trash.addEventListener("dragleave", () => {
+      trash.classList.remove("drag-over");
+    });
+
+    trash.addEventListener("drop", (e) => {
+      e.preventDefault();
+      trash.classList.remove("drag-over");
+
+      if (!draggedTask) return;
+      if (draggedTask.dataset.zone !== "activity") return;
+
+      const bid = draggedTask.dataset.id;
+      const name = draggedTask.textContent.trim();
+
+      if (!confirm(`${name} 블럭을 삭제하시겠습니까?`)) return;
+
+      deleteActivityBlock(bid);
+    });
+  }
+
+  // 일정블록 삭제함수
+  function deleteActivityBlock(bid) {
+    fetch(`/planners/activity?bid=${bid}`, {
+      method: "DELETE",
+      headers: { [csrfHeader]: csrfToken }
+    }).then((res) => {
+      if (res.status === 200) {
+        removePlacedBlocksAndNotify(bid);
+        loadActivityList();
+        notifyActivityListChanged("ACTIVITY_REMOVE", bid);
+        alert("활동 블럭이 삭제되었습니다.");
+      } else {
+        alert("삭제 중 오류가 발생했습니다.");
+      }
+    });
+  }
+
+  // 일정블록 삭제시 시간표의 블록도 삭제
+  function removePlacedBlocksAndNotify(taskId) {
+    document
+        .querySelectorAll(`.placed-block[data-task-id="${taskId}"]`)
+        .forEach((block) => {
+          const instanceId = block.dataset.instanceId;
+
+          if (stompClient && connected) {
+            stompClient.send("/app/task.remove", {}, JSON.stringify({
+              sid: sid,
+              instanceId: instanceId,
+              userId: MY_USER_ID,
+              username: MY_NAME,
+              taskId: taskId,
+              action: "REMOVE",
+              mode: "REMOVE"
+            }));
+          }
+
+          block.remove();
+        });
+  }
+
+  // 일정 블록 추가/삭제 실시간 반영
+  function notifyActivityListChanged(action, bid) {
+    if (!stompClient || !connected) return;
+
+    stompClient.send("/app/task.move", {}, JSON.stringify({
+      sid: sid,
+      userId: MY_USER_ID,
+      username: MY_NAME,
+      taskId: bid || null,
+      action: action,
+      mode: "ACTIVITY"
+    }));
+  }
+
+  function sendOnly(order) {
+    if (contentInput.disabled) {
+      return;
+    }
+    stompClient.send(
+        "/app/chat.sent",
+        {},
+        JSON.stringify({
+          sid: sid,
+          sender: MY_NAME,
+          content: order,
+          senderId: MY_USER_ID,
+        }),
+    );
+  }
+
+  function sendMessage() {
+    if (!contentInput) return;
+    if (contentInput.disabled) return;
+    let content = contentInput.value.trim();
+
+    if (!content || !stompClient || !connected) return;
+
+    if (!/^(?!.*<(?!br\s*\/?>)).*$/i.test(content)) {
+      content = "제가 HTML코드를 보낼려고 했어요... 죄송해요...";
+    }
+
+    if (!content.startsWith("/날씨") && content.startsWith("/")) {
+      //명령어만 외부까지 분리
+      stompClient.send(
+          "/app/chat.send",
+          {},
+          JSON.stringify({
+            sid: sid,
+            sender: MY_NAME,
+            content: content,
+            senderId: MY_USER_ID,
+          }),
+      );
+    } else {
+      stompClient.send(
+          "/app/chat.sent",
+          {},
+          JSON.stringify({
+            sid: sid,
+            sender: MY_NAME,
+            content: content,
+            senderId: MY_USER_ID,
+          }),
+      );
+    }
+
+    contentInput.value = "";
+    contentInput.focus();
+  }
+
+  function showMessage(chat) {
+    if (!chat || !chat.content) return;
+
+    const isMyMsg = chat.senderId === MY_USER_ID;
+
+    const chatBox = document.getElementById("chatMessages");
+    if (!chatBox) return;
+
+    const div = document.createElement("div");
+    div.className = "msg";
+    div.style.marginBottom = "12px";
+    div.style.display = "flex";
+    div.style.alignItems = "flex-start";
+    div.style.gap = "8px";
+
+    if (isMyMsg) {
+      div.style.flexDirection = "row-reverse";
+    }
+
+    const contentContainer = document.createElement("div");
+    contentContainer.style.display = "flex";
+    contentContainer.style.flexDirection = "column";
+    if (isMyMsg) {
+      contentContainer.style.alignItems = "flex-end";
+    }
+
+    if (!isMyMsg) {
+      const profileImgUrl = chat.userProfile || 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png';
+      const figure = document.createElement("figure");
+      figure.style.margin = "0";
+      figure.style.width = "36px";
+      figure.style.height = "36px";
+      figure.style.borderRadius = "50%";
+      figure.style.overflow = "hidden";
+      figure.style.flexShrink = "0";
+      figure.style.backgroundColor = "#e5e7eb";
+
+      const img = document.createElement("img");
+      img.src = profileImgUrl;
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.objectFit = "cover";
+      figure.appendChild(img);
+
+      const sender = document.createElement("span");
+      sender.className = "sender";
+      sender.textContent = chat.sender || 'System';
+      sender.style.fontWeight = "700";
+      sender.style.fontSize = "13px";
+      sender.style.marginBottom = "4px";
+
+      contentContainer.appendChild(sender);
+      div.appendChild(figure);
+    }
+
+    const message = document.createElement("span");
+    switch (true) {
+      case chat.content == "전술핵":
+        document.body.innerHTML += `<div style="position:fixed;top:0;left:0;z-index:2500;width:100vw;height:100vh;background:center/contain no-repeat url('https://lh6.googleusercontent.com/proxy/rKz65NwzMobA0gD82nY0SvPaAkARlOcMfpUW1oFBuFMERMJlBfbhopJE4bCY9LpnyCPQMcqqzfwxWfZRpxjb5V4H_tjZkjJPtHM7q1_sgDkXfcpYwNW-LJkHZ_Egt6goDHHjcWRVhi7qdP4hkXfew0c3tRcJERo')">`;
+        break;
+      default:
+        message.innerHTML = chat.content;
+    }
+
+    message.style.background = isMyMsg ? "#e0e7ff" : "#fff";
+    message.style.border = "1px solid #e5e7eb";
+    message.style.padding = "8px 12px";
+    message.style.borderRadius = "8px";
+    message.style.fontSize = "14px";
+    message.style.lineHeight = "1.4";
+    message.style.wordBreak = "break-word";
+
+    contentContainer.appendChild(message);
+    div.appendChild(contentContainer);
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+
+  function renderRemoteCursor(data) {
+    if (data.userId === MY_USER_ID) return;
+
+    let cursor = document.getElementById(`cursor-${data.userId}`);
+
+    if (!cursor) {
+      cursor = document.createElement("div");
+      cursor.id = `cursor-${data.userId}`;
+      cursor.className = "remote-cursor";
+
+      const label = document.createElement("div");
+      label.className = "remote-cursor-label";
+      label.textContent = data.username || "user";
+
+      cursor.appendChild(label);
+      document.getElementById("cursorLayer").appendChild(cursor);
+    }
+
+    cursor.style.left = `${data.x}px`;
+    cursor.style.top = `${data.y}px`;
+
+    if (remoteCursors.has(data.userId)) {
+      clearTimeout(remoteCursors.get(data.userId));
+    }
+
+    const timeout = setTimeout(() => {
+      cursor.remove();
+      remoteCursors.delete(data.userId);
+    }, 3000);
+
+    remoteCursors.set(data.userId, timeout);
+  }
+
+  function renderRemoteDragState(data) {
+    if (data.userId === MY_USER_ID) return;
+
+    const dragState = document.getElementById("dragState");
+    const key = `${data.userId}-${data.taskId}`;
+
+    if (data.type === "START") {
+      dragState.style.display = "block";
+      dragState.textContent = `${data.username || "user"}님이 ${data.taskId}번 작업을 이동 중입니다.`;
+      remoteDragState.set(key, true);
+    }
+
+    if (data.type === "END") {
+      remoteDragState.delete(key);
+      // data.taskId 추가
+      removeRemoteDraggingTask(data.userId, data.instanceId, data.taskId);
+
+      if (remoteDragState.size === 0) {
+        dragState.style.display = "none";
+        dragState.textContent = "";
+      }
+    }
+  }
+
+  function renderRemoteDraggingTask(data) {
+    if (data.userId === MY_USER_ID) return;
+
+    const originalTask =
+        (data.instanceId &&
+            document.querySelector(
+                `.task[data-instance-id='${data.instanceId}']`,
+            )) ||
+        document.querySelector(`.task[data-id='${data.taskId}']`);
+
+    if (!originalTask) return;
+
+    const ghostKey = data.instanceId || data.taskId;
+    let ghost = document.getElementById(`ghost-task-${ghostKey}`);
+
+    if (!ghost) {
+      ghost = originalTask.cloneNode(true);
+      ghost.id = `ghost-task-${ghostKey}`;
+      ghost.removeAttribute("data-id");
+      ghost.classList.add("ghost-task");
+
+      const rect = originalTask.getBoundingClientRect();
+      ghost.style.position = "fixed";
+      ghost.style.width = rect.width + "px";
+      ghost.style.height = rect.height + "px";
+      ghost.style.pointerEvents = "none";
+      ghost.style.zIndex = "10000";
+
+      document.body.appendChild(ghost);
+    }
+
+    ghost.style.left = data.x + "px";
+    ghost.style.top = data.y + "px";
+  }
+
+  function removeRemoteDraggingTask(userId, instanceId, taskId) {
+    // instanceId가 없으면 taskId를 우선 사용하도록 변경
+    const ghostKey = instanceId || taskId;
+    const ghost = document.getElementById(`ghost-task-${ghostKey}`);
+    if (ghost) ghost.remove();
+  }
+
+  function throttle(fn, wait) {
+    let lastTime = 0;
+    return function (...args) {
+      const now = Date.now();
+      if (now - lastTime >= wait) {
+        lastTime = now;
+        fn.apply(this, args);
+      }
+    };
+  }
+
+  function startCursorBatchSender() {
+    if (cursorBatchTimer) return;
+
+    cursorBatchTimer = setInterval(function () {
+      if (!stompClient || !connected || cursorQueue.length === 0) return;
+
+      const batch = cursorQueue.slice();
+      cursorQueue = [];
+
+      stompClient.send(
+          "/app/cursor.batch",
+          {},
+          JSON.stringify({
+            sid: sid,
+            cursors: batch,
+          }),
+      );
+    }, 50);
+  }
+
+  const queueCursor = throttle(function (e) {
+    if (!stompClient || !connected) return;
+
+    cursorQueue.push({
+      userId: MY_USER_ID,
+      username: MY_NAME,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  }, 10);
+
+  document.addEventListener("mousemove", queueCursor);
+
+  const sendDragMove = throttle(function (e) {
+    if (!draggedTask || !stompClient || !connected) return;
+
+    stompClient.send(
+        "/app/task.drag.move",
+        {},
+        JSON.stringify({
+          sid: sid,
+          userId: MY_USER_ID,
+          username: MY_NAME,
+          taskId: draggedTask.dataset.id,
+          instanceId: draggedTask.dataset.instanceId || "",
+          x: e.clientX,
+          y: e.clientY,
+        }),
+    );
+  }, 30);
+
+  document.addEventListener("dragover", sendDragMove);
+
+  document.addEventListener("contextmenu", (e) => {
+    const block = e.target.closest(".placed-block");
+    if (block) {
+      e.preventDefault();
+      if (confirm("해당 일정을 삭제하시겠습니까?")) {
+        const instanceId = block.dataset.instanceId;
+        const taskId = block.dataset.taskId;
+
+        if (stompClient && connected) {
+          stompClient.send(
+              "/app/task.remove",
+              {},
+              JSON.stringify({
+                sid: sid,
+                instanceId: instanceId,
+                userId: MY_USER_ID,
+                username: MY_NAME,
+                taskId: taskId,
+                action: "REMOVE",
+                mode: "REMOVE"
+              }),
+          );
+        }
+
+        block.remove();
+      }
+    }
+  });
+
+  function submitSchedule() {
+    const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+    const blocks = document.querySelectorAll(".placed-block");
+    const result = Array.from(blocks).map(block => ({
+      bid: block.dataset.taskId,
+      date: block.dataset.scheduleDate,
+      startTime: block.dataset.start,
+      endTime: block.dataset.end
+    }))
+
+    if (confirm("일정을 등록하시겠습니까?")) {
+      fetch('/planners/schedule/submit?sid=' + sid, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', [csrfHeader]: csrfToken }, body: JSON.stringify(result)
+      })
+          .then(res => {
+            if (res.status === 200) {
+              alert("일정이 등록되었습니다.")
+              sendOnly('dkfjalkjfjlkjlkejlwjlkfjdfldjfl');
+              return;
+            } else if (res.status === 400) {
+              alert("일정 블럭을 하나 이상 등록해야 합니다.");
+              return;
+            }
+            alert("예기치 못한 오류 발생");
+          })
+    }
+  }
+
+  document.querySelector('input.board-title').addEventListener('keyup', (e) => {
+    if (e.key == 'Enter')
+      editTitle('commit');
+    else if(e.key == 'Escape') editTitle('cancel');
+  })
+
+  function editTitle(workcode) {
+    const titleFix = document.querySelector('.board-title');
+    const titleCustom = document.querySelector('input.board-title');
+    const titbtnEdit = document.querySelectorAll('.edit-title')[0];
+    const titbtnComplete = document.querySelectorAll('.edit-title')[1];
+    if (workcode == 'try') {
+      titleCustom.disabled = false;
+      titleCustom.value = titleFix.innerText;
+      titleFix.style.display = 'none';
+      titleCustom.style.display = 'inline-block';
+      titbtnEdit.style.display = 'none';
+      titbtnComplete.style.display = 'inline-block';
+      titleCustom.select();
+    } else if (workcode == 'commit') {
+      let newtitle = titleCustom.value;
+      if (newtitle.length <= 50) {
+        if (newtitle.trim().length == 0) newtitle = '제목없음';
+        fetch("/planners/schedule/title?sid=" + sid + "&title=" + newtitle, { method: "POST", headers: { [csrfHeader]: csrfToken } })
+            .then(res => {
+              if (res.status === 200) {
+                titleFix.innerText = newtitle;
+                titleFix.style.display = 'inline-block';
+                titleCustom.style.display = 'none';
+                titbtnEdit.style.display = 'inline-block';
+                titbtnComplete.style.display = 'none';
+                titleCustom.disabled = true;
+                sendOnly('/title '+newtitle);
+                return;
+              } else alert("서버 오류로 변경이 불가합니다.\n잠시 후 다시 시도 바랍니다.");
+            });
+      } else { alert('일정의 이름이 너무 깁니다'); titleCustom.select(); }
+    } else if (workcode == 'cancel') {
+      titleFix.style.display = 'inline-block';
+      titleCustom.style.display = 'none';
+      titbtnEdit.style.display = 'inline-block';
+      titbtnComplete.style.display = 'none';
+      titleCustom.disabled = true;
+    }
+  }
+</script>
+<script th:src="@{/js/header.js}"></script>
+<script th:src="@{/js/plannersTap.js}"></script>
+<div th:replace="~{layout/footer}"></div>
+</body>
+
+</html>

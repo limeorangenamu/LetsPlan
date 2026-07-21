@@ -1,0 +1,123 @@
+<!doctype html>
+<html
+    lang="ko"
+    xmlns:th="http://www.thymeleaf.org"
+    xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+>
+<head>
+  <meta charset="UTF-8" />
+  <title>플래너즈 소개</title>
+  <link rel="stylesheet" th:href="@{/css/header.css}" />
+  <link rel="stylesheet" th:href="@{/css/footer.css}" />
+  <meta name="_csrf" th:content="${_csrf.token}" />
+  <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+  <style>
+      subheader {
+          text-align: center;
+          padding: 40px 20px;
+      }
+      subheader h1 {
+          font-size: 2.5em;
+          margin-bottom: 10px;
+      }
+      subheader p {
+          font-size: 1.2em;
+      }
+      subheader ~ section {
+          max-width: 900px;
+          margin: 40px auto;
+          background: white;
+          padding: 30px;
+          border-radius: 10px;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      }
+      subheader ~ section h2 {
+          color: #1e90ff;
+          border-bottom: 2px solid #1e90ff;
+          padding-bottom: 8px;
+          margin-bottom: 20px;
+      }
+      subheader ~ section p {
+          line-height: 1.8;
+          font-size: 1.05em;
+      }
+      subheader ~ section ul {
+          list-style: none;
+          padding: 0;
+      }
+      subheader ~ section ul li {
+          background: #f0f4ff;
+          margin: 10px 0;
+          padding: 12px 15px;
+          border-radius: 6px;
+      }
+      subfooter {
+          text-align: center;
+          padding: 20px;
+          background-color: #f0f4ff;
+          color: #555;
+          font-size: 0.9em;
+          margin-inline: auto;
+          width: 100%;
+          display: inline-block;
+      }
+  </style>
+</head>
+<body>
+<div th:replace="~{layout/header :: header}"></div>
+
+<main class="home-main">
+  <subheader>
+    <h1>플래너즈란?</h1>
+    <p>취미와 관심사를 연결하는 새로운 커뮤니티 플랫폼</p>
+  </subheader>
+
+  <section>
+    <h2>🌟 서비스 소개</h2>
+    <p>
+      <strong>LET’S PLAN</strong>은 누구나 쉽게 자신의 취미나 관심사를
+      중심으로 모임을 만들고 참여할 수 있는 플랫폼입니다.
+      ‘플래너즈(Planners)’라는 이름의 그룹을 통해 사람들과 함께 배우고,
+      즐기고, 소통할 수 있습니다.
+    </p>
+  </section>
+
+  <section>
+    <h2>💬 주요 기능</h2>
+    <ul>
+      <li>
+        <strong>플래너즈 생성</strong> — 관심 있는 주제로 직접 모임을 만들
+        수 있습니다.
+      </li>
+      <li>
+        <strong>검색 및 참여</strong> — 취미, 지역, 카테고리별로 원하는
+        모임을 찾아 참여하세요.
+      </li>
+      <li>
+        <strong>실시간 활동</strong> — 다른 이용자들이 무엇을 하고 있는지
+        실시간으로 확인할 수 있습니다.
+      </li>
+      <li>
+        <strong>후원 시스템</strong> — 커뮤니티 유지와 발전을 위해 후원
+        기능을 제공합니다.
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>🎯 이런 분들께 추천합니다</h2>
+    <p>
+      혼자 취미를 즐기기보다 함께 나누고 싶은 분, 새로운 사람들과 교류하고
+      싶은 분, 혹은 자신만의 모임을 운영해보고 싶은 분께
+      <strong>LET’S PLAN</strong>은 완벽한 선택입니다.
+    </p>
+  </section>
+
+  <subfooter
+  >© 2026 LET’S PLAN | 함께 계획하고, 함께 성장하는 커뮤니티</subfooter
+  >
+</main>
+<script th:src="@{/js/header.js}"></script>
+<div th:replace="~{layout/footer}"></div>
+</body>
+</html>
