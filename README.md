@@ -1,1 +1,1 @@
-[▶웹 포트폴리오로 가서 설명 보기]([url](https://developer-portfolio.changy.workers.dev/))
+[🌐 웹 포트폴리오 보러가기](https://developer-portfolio.changy.workers.dev/)
